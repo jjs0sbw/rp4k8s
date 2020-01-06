@@ -1,0 +1,79 @@
+###############################################################################
+#####  Raspberry Pi 4 Cluster Build [T4]
+###############################################################################
+##### Using code based on the following sites: 
+##### https://limpygnome.com/2019/09/21/raspberry-pi-kubernetes-cluster/
+#####
+##### https://github.com/teamserverless/k8s-on-raspbian/blob/master/GUIDE.md
+#####
+##### https://blog.alexellis.io/serverless-kubernetes-on-raspberry-pi
+##############################################################################
+
+###############################################################################
+##### Item 1 - Flash microSD cards with Linus OS
+###############################################################################
+Item 1.1 - Use Mac with etcher to load Raspbian Lite on microSD card.
+Item 1.2 - 2019-09-26-raspbian-buster-lite.img
+Item 1.3 - Create file named ssh in Volumes/boot
+Item 1.3.1 - touch Volumes/boot/ssh
+
+###############################################################################
+##### Item 2 - Four microSD Cards, One Master And Three Workers
+###############################################################################
+
+###############################################################################
+##### Item 3 - Insert microSD Cards And Power Up Network
+###############################################################################
+Item 3.1 - Use an Ethernet switch to connect the compute nodes
+Item 3.2 - Use a different Linux or Mac computer to ssh into the node
+Item 3.3 - Use namp -sP 192.168.0.0/24 get local LAN ip addresses
+
+###############################################################################
+##### Item 4 - Configure Base Master Node - mpi1
+###############################################################################
+Item 4.1 - ssh pi@192.168.0.12 (get IP address from master node first)
+           Remove existing host name in known_hosts if necessary
+           ssh-keygen -R 192.168.0.12
+Item 4.2 - Enter default password - raspberry
+Item 4.3 - Change master node configuration
+Item 4.4 - sudo raspi-config
+Item 4.5 - Change password xxyyzzqq
+Item 4.6 - Change hostname: m1
+Item 4.7 - Enable the ssh server (Interfacing Options)
+Item 4.8 - Update configuration tool (Update)
+Item 4.9 - Configure static IP address
+           sudo nano /etc/dhcpcd.conf
+           interface eth0
+           static ip_address=192.168.0.13/24
+           static routers=192.168.0.1
+           static domain_name_servers=8.8.8.8 8.8.4.4
+Item 4.10 - Disable swap:
+            sudo dphys-swapfile swapoff
+            sudo dphys-swapfile uninstall
+            sudo update-rc.d dphys-swapfile remove
+            sudo apt purge dphys-swapfile
+Item 4.11 - Add kubernetes repository to package sources
+            echo "deb http://apt.kubernetes.io/ kubernetes-xenial main" | sudo tee -a /etc/apt/sources.list.d/kubernetes.list
+            curl -s https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo apt-key add -
+Item 4.12 - Update - (no upgrade)  available packages
+            sudo apt update
+            ( no takes to long) sudo apt upgrade
+Item 4.13 - Install network tool and Kubernetes ADM client
+            sudo apt install dnsutils kubeadm
+Item 4.14 - Install latest Docker (may need to change this)
+            curl -sSL get.docker.com | sh && sudo usermod pi -aG docker && \
+            newgrp docker
+Item 4.15 - Configure ip tables to open all ports
+            (currently required for pod DNS to work):
+
+            sudo iptables -P FORWARD ACCEPT
+
+            Without this step, you may find coredns pods fail to start
+            on app nodes and/or DNS does not work.
+Item 4.16 - Configure iptables to run in legacy, since kube-proxy has
+            issues with iptables version 1.8:
+     
+            sudo update-alternatives --set iptables /usr/sbin/iptables-legacy
+
+Item 4.17 - Reboot mpi1
+            sudo reboot
