@@ -125,5 +125,56 @@ Item 5.16 - Configure iptables to run in legacy, since kube-proxy has
 
             sudo update-alternatives --set iptables /usr/sbin/iptables-legacy
 
-Item 5.17 - Reboot wpi1
-            sudo reboot            
+Item 5.17 - Reboot w1
+            sudo reboot        
+
+###############################################################################
+##### Item 6 - Configure Worker Node 2 - w2
+###############################################################################
+Item 6.1 - ssh pi@192.168.0.13 (get IP address of worker node first)
+           Remove existing host name in known_hosts if necessary
+           ssh-keygen -R 192.168.0.13
+Item 6.2 - Enter default password - raspberry
+Item 6.3 - Change worker node 2 configuration
+Item 6.4 - sudo raspi-config
+Item 6.5 - Change password xxyyzzqq
+Item 6.6 - Change hostname: w2
+Item 6.7 - Enable the ssh server (Interfacing Options)
+Item 6.8 - Update configuration tool (Update)
+                (do not   sudo reboot)
+Item 6.9 - Configure static IP address
+           sudo nano /etc/dhcpcd.conf
+           interface eth0
+           static ip_address=192.168.0.13/24
+           static routers=192.168.0.1
+           static domain_name_servers=8.8.8.8 1.1.1.1
+Item 6.10 - Disable swap:
+            sudo dphys-swapfile swapoff
+            sudo dphys-swapfile uninstall
+            sudo update-rc.d dphys-swapfile remove
+            sudo apt purge dphys-swapfile
+Item 6.11 - Add kubernetes repository to package sources
+            echo "deb http://apt.kubernetes.io/ kubernetes-xenial main" | sudo tee -a /etc/apt/sources.list.d/kubernetes.list
+            curl -s https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo apt-key add -
+Item 6.12 - Update - (no upgrade)  available packages
+            sudo apt update
+            ( no takes to long) sudo apt upgrade
+Item 6.13 - Install network tool and Kubernetes ADM client
+            sudo apt install dnsutils kubeadm
+Item 6.14 - Install latest Docker (may need to change this)
+            curl -sSL get.docker.com | sh && sudo usermod pi -aG docker && \
+            newgrp docker
+Item 6.15 - Configure IP tables to open all ports
+            (currently required for pod DNS to work):
+
+            sudo iptables -P FORWARD ACCEPT
+
+            Without this step, you may find coredns pods fail to start
+            on app nodes and/or DNS does not work.
+Item 6.16 - Configure iptables to run in legacy, since kube-proxy has
+            issues with iptables version 1.8:
+
+            sudo update-alternatives --set iptables /usr/sbin/iptables-legacy
+
+Item 6.17 - Reboot w2
+            sudo reboot                
