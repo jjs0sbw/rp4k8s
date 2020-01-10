@@ -228,4 +228,22 @@ Item 7.16 - Configure iptables to run in legacy, since kube-proxy has
             sudo update-alternatives --set iptables /usr/sbin/iptables-legacy
 
 Item 7.17 - Reboot w3
-            sudo reboot                    
+            sudo reboot                   
+
+###############################################################################
+##### Item 8 - Check Node Configuration
+###############################################################################
+Item 8.1 - List hosts on 192.168.0.1/24 network
+           nmap -sn 192.168.0.1/24
+Item 8.2 - Login to master node 1 - 192.168.0.12
+           ssh pi@192.168.0.12/24
+           exit
+Item 8.3 - Login to worker node 1 - 192.168.0.14 
+           ssh pi@192.168.0.14
+           exit
+Item 8.4 - Login to worker node 2 - 192.168.0.13 
+           ssh pi@192.168.0.13 
+           exit
+Item 8.5 - Login to worker node 3 - 192.168.0.16 
+           ssh pi@192.168.0.16
+           exit            
