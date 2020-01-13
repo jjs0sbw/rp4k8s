@@ -10,7 +10,7 @@
 ##############################################################################
 
 ###############################################################################
-##### Item 1 - Flash microSD cards with Linus OS
+##### Item 1 - Flash microSD cards with Linux OS
 ###############################################################################
 Item 1.1 - Use Mac with etcher to load Raspbian Lite on microSD card.
 Item 1.2 - 2019-09-26-raspbian-buster-lite.img
@@ -357,7 +357,7 @@ Item 10.1 - Join w1 node to the Network
           --discovery-token-ca-cert-hash sha256:9ccaaeb13f2d1cbdaa22df14acb83bc492c9af037d0b41060eadf4ff4924e56e 
 
 
-   ##### output
+   ##### Output
    W0112 05:42:22.101491   25762 join.go:346] [preflight] WARNING: JoinControlPane.controlPlane settings will be ignored when control-plane flag is not set.
    [preflight] Running pre-flight checks
    [WARNING IsDockerSystemdCheck]: detected "cgroupfs" as the Docker cgroup driver. The recommended driver is "systemd". Please follow the guide at https://kubernetes.io/docs/setup/cri/
@@ -428,5 +428,167 @@ Item 10.3 - Join w3 node to the Network
     m1     Ready    master   32h     v1.17.0
     w1     Ready    <none>   19m     v1.17.0
     w2     Ready    <none>   6m15s   v1.17.0
-    w3     Ready    <none>   101s    v1.17.0
+    w3     Ready    <none>   101s    v1.17.
+    
+###############################################################################
+##### Item 11 - Install Kubernetes Dashboard
+###############################################################################
+Item 11.1 - Login to master nod - m1 
+     ssh pi@192.168.0.12 
+Item 11.2 - Install the Dashboard
+     kubectl apply -f https://raw.githubusercontent.com/kubernetes/dashboard/v2.0.0-beta4/aio/deploy/recommended.yaml
+
+     ##### Output
+     namespace/kubernetes-dashboard created
+     serviceaccount/kubernetes-dashboard created
+     service/kubernetes-dashboard created
+     secret/kubernetes-dashboard-certs created
+     secret/kubernetes-dashboard-csrf created
+     secret/kubernetes-dashboard-key-holder created
+     configmap/kubernetes-dashboard-settings created
+     role.rbac.authorization.k8s.io/kubernetes-dashboard created
+     clusterrole.rbac.authorization.k8s.io/kubernetes-dashboard created
+     rolebinding.rbac.authorization.k8s.io/kubernetes-dashboard created
+     clusterrolebinding.rbac.authorization.k8s.io/kubernetes-dashboard created
+     deployment.apps/kubernetes-dashboard created
+     service/dashboard-metrics-scraper created
+     deployment.apps/dashboard-metrics-scraper created
+
+
+Item 11.3 - Create user.yaml file
+     nano user.yaml
+
+     ##### File contents
+     apiVersion: v1
+     kind: ServiceAccount
+     metadata:
+       name: admin-user
+       namespace: kube-system
+     ---
+     apiVersion: rbac.authorization.k8s.io/v1
+     kind: ClusterRoleBinding
+     metadata:
+       name: admin-user
+     roleRef:
+       apiGroup: rbac.authorization.k8s.io
+       kind: ClusterRole
+       name: cluster-admin
+     subjects:
+     - kind: ServiceAccount
+       name: admin-user
+       namespace: kube-system
+
+Item 11.4 Apply user.yaml file to setup Dashboard
+    kubectl apply -f user.yaml
+
+    ##### Output
+    serviceaccount/admin-user created
+    clusterrolebinding.rbac.authorization.k8s.io/admin-user created
+
+
+###############################################################################
+##### Item 12 - Access Kubernetes Dashboard
+###############################################################################
+Item 12.1 - Create dashboard shell script on local linux machne (not in cluster)
+    nano dashboard.sh
+
+    That contains:
+    #####
+    MASTER="pi@192.168.0.12"
+
+    # Print token for login
+    TOKEN_COMMAND="kubectl -n kube-system describe secret \$(kubectl -n kube-system get secret | grep admin-user | awk '{print \$1}')"
+
+    echo "Dumping token for dashboard..."
+    ssh ${MASTER} -C "${TOKEN_COMMAND}"
+
+    echo "Login:"
+    echo "  http://localhost:8089/api/v1/namespaces/kubernetes-dashboard/services/https:kubernetes-dashboard:/proxy/#/login"
+
+    # Create SSH tunnel to k8 master and run proxy
+    echo "Creating proxy tunnel to this machine from master..."
+    ssh -L 8089:localhost:8089 ${MASTER} -C "kubectl proxy --port=8089 || true"
+
+    echo "Terminate proxy..."
+    ssh ${MASTER} -C "pkill kubectl"
+
+Item 12.2 Change mode of and run dashboard.sh file
+     chmod 755 dashboard.sh
+     ,/dashboard.sh
+
+     ##### Output
+
+     Dumping token for dashboard...
+pi@192.168.0.12's password: 
+Name:         admin-user-token-hjc7j
+Namespace:    kube-system
+Labels:       <none>
+Annotations:  kubernetes.io/service-account.name: admin-user
+              kubernetes.io/service-account.uid: 059ba9e5-e180-4ba0-a639-7024c73d4324
+
+Type:  kubernetes.io/service-account-token
+
+Data
+====
+ca.crt:     1025 bytes
+namespace:  11 bytes
+token:      eyJhbGciOiJSUzI1NiIsImtpZCI6IjVEX3NVQlZFWjhpWUxpSHVZUFRYY1BDLWcyMGNfc0h5bmdMb0s1dG5aSGsifQ.eyJpc3MiOiJrdWJlcm5ldGVzL3NlcnZpY2VhY2NvdW50Iiwia3ViZXJuZXRlcy5pby9zZXJ2aWNlYWNjb3VudC9uYW1lc3BhY2UiOiJrdWJlLXN5c3RlbSIsImt1YmVybmV0ZXMuaW8vc2VydmljZWFjY291bnQvc2VjcmV0Lm5hbWUiOiJhZG1pbi11c2VyLXRva2VuLWhqYzdqIiwia3ViZXJuZXRlcy5pby9zZXJ2aWNlYWNjb3VudC9zZXJ2aWNlLWFjY291bnQubmFtZSI6ImFkbWluLXVzZXIiLCJrdWJlcm5ldGVzLmlvL3NlcnZpY2VhY2NvdW50L3NlcnZpY2UtYWNjb3VudC51aWQiOiIwNTliYTllNS1lMTgwLTRiYTAtYTYzOS03MDI0YzczZDQzMjQiLCJzdWIiOiJzeXN0ZW06c2VydmljZWFjY291bnQ6a3ViZS1zeXN0ZW06YWRtaW4tdXNlciJ9.xPvmU3pd6autDgc6irCHmCxNQyGwZKmr-q7b498yQ2jx5O4TLRv8ML9ygdyt3E1sZCa-fa7e5fQTmOgu3t5YUHP3mthTIp4t_aQWkzaOUOqin-PPvGNZhxSY_TxuPeW4o-CI6exsn9LKC6EhuFB5AyOU650oTDCu_7oNGa27JnqakzV9ZbWyVc335zKzdpaFyobywQyKTQSUgGv4DizyA24O4_KwatOXI8bxbNsrxkxDQQlMXm6z4dfyP9CmD9vePKdn60GxHPGb9xJlAojt0MPMzqpHcSTWbmCWrFDlTzkfp6diVBytAqbTp5kahDcVrY-XahAg8cqLy2qxWlMz9A
+Login:
+  http://localhost:8089/api/v1/namespaces/kubernetes-dashboard/services/https:kubernetes-dashboard:/proxy/#/login
+Creating proxy tunnel to this machine from master...
+pi@192.168.0.12's password: 
+Starting to serve on 127.0.0.1:8089
+
+
+###############################################################################
+##### Item 13 - Deploy Nginx On The Cluster
+##############################################################################
+## From Master Node - m1 -
+
+kubectl create deployments nginx --image=ngix
+
+###############################################################################
+##### Item 14 - Install Helm
+##############################################################################
+## On Master Node - m1 
+
+ curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3
+ chmod 700 get_helm.sh
+ ./get_helm.sh
+
+ ##### Output 
+ Downloading https://get.helm.sh/helm-v3.0.2-linux-arm.tar.gz
+Preparing to install helm into /usr/local/bin
+helm installed into /usr/local/bin/helm
+
+###############################################################################
+##### Item 15 - Install Nginx Using Helm
+##############################################################################
+## On Master Node - m1
+
+#### Add NGINX Helm repository:
+
+helm repo add nginx-stable https://helm.nginx.com/stable
+
+### "nginx-stable" has been added to your repositories
+
+ helm repo update
+
+ ### Hang tight while we grab the latest from your chart repositories...
+ ### ...Successfully got an update from the "nginx-stable" chart repository
+ ### Update Complete. ⎈ Happy Helming!⎈
+
+helm install nginx-stable/nginx-ingress --generate-name
+
+### NAME: nginx-ingress-1578894679
+### LAST DEPLOYED: Mon Jan 13 05:51:20 2020
+### NAMESPACE: default
+### STATUS: deployed
+### REVISION: 1
+### TEST SUITE: None
+### NOTES:
+### The NGINX Ingress Controller has been installed.
+
+### remove nginx-ingress 
+nginx-ingress-1578894679
 
